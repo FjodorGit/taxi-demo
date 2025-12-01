@@ -22,10 +22,10 @@ const CONFIG: SimulationConfig = {
 	ticksPerSpawnCheck: 1,
 	burstChance: 1.0,
 	burstMinSize: 3,
-	burstMaxSize: 7,
+	burstMaxSize: 3,
 };
 
-const SEED = 12345;
+const SEED = 12344;
 const TICK_INTERVAL_MS = 100;
 
 function seededRandom(seed: number): () => number {

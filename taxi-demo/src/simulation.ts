@@ -153,16 +153,19 @@ export function defaultOptimizer(state: SimulationState, queueSize: number): Arr
 		return [];
 	}
 
-	const n = Math.min(idleTaxis.length, unassignedPassengers.length);
+	const numTaxis = idleTaxis.length;
+	const numPassengers = unassignedPassengers.length;
+	const n = Math.max(numTaxis, numPassengers);
+	const MAX_COST = state.city.width * state.city.height * 2;
 	const costMatrix: number[][] = [];
 
 	for (let i = 0; i < n; i++) {
 		costMatrix[i] = [];
 		for (let j = 0; j < n; j++) {
-			if (i < idleTaxis.length && j < unassignedPassengers.length) {
+			if (i < numTaxis && j < numPassengers) {
 				costMatrix[i][j] = pathDistance(state.city, idleTaxis[i].position, unassignedPassengers[j].pickup);
 			} else {
-				costMatrix[i][j] = 0;
+				costMatrix[i][j] = MAX_COST;
 			}
 		}
 	}
