@@ -87,6 +87,22 @@ export function CityCanvas({ state, metrics, title, width, height }: CityCanvasP
       ctx.arc(px, py, cellSize * 0.25, 0, Math.PI * 2);
       ctx.fill();
       
+      if (passenger.assignedTaxiId) {
+        const taxiIndex = state.taxis.findIndex(t => t.id === passenger.assignedTaxiId);
+        if (taxiIndex >= 0) {
+          ctx.fillStyle = '#1a1a2e';
+          ctx.beginPath();
+          ctx.arc(px, py, cellSize * 0.15, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `bold ${Math.floor(cellSize * 0.22)}px system-ui, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(String(taxiIndex), px, py);
+        }
+      }
+      
       const dx = offsetX + passenger.destination.x * cellSize + cellSize / 2;
       const dy = offsetY + passenger.destination.y * cellSize + cellSize / 2;
       
@@ -116,7 +132,8 @@ export function CityCanvas({ state, metrics, title, width, height }: CityCanvasP
       ctx.fill();
     }
     
-    for (const taxi of state.taxis) {
+    for (let i = 0; i < state.taxis.length; i++) {
+      const taxi = state.taxis[i];
       const px = offsetX + taxi.position.x * cellSize + cellSize / 2;
       const py = offsetY + taxi.position.y * cellSize + cellSize / 2;
       
@@ -130,6 +147,19 @@ export function CityCanvas({ state, metrics, title, width, height }: CityCanvasP
       
       const size = cellSize * 0.35;
       ctx.fillRect(px - size / 2, py - size / 2, size, size);
+      
+      if (taxi.state === 'picking_up' || taxi.state === 'delivering') {
+        ctx.fillStyle = '#1a1a2e';
+        ctx.beginPath();
+        ctx.arc(px, py, cellSize * 0.15, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.floor(cellSize * 0.22)}px system-ui, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(i), px, py);
+      }
     }
     
     const metricsY = height - metricsHeight + 10;

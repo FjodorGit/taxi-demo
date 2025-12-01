@@ -81,6 +81,9 @@ export function assignGreedy(state: SimulationState): void {
 	const idleTaxis = state.taxis.filter(t => t.state === 'idle');
 	const unassignedPassengers = state.waitingPassengers.filter(p => !p.assignedTaxiId);
 
+	let totalDistance = 0;
+	let assignmentCount = 0;
+
 	for (const passenger of unassignedPassengers) {
 		if (idleTaxis.length === 0) break;
 
@@ -102,9 +105,16 @@ export function assignGreedy(state: SimulationState): void {
 			closestTaxi.targetPosition = passenger.pickup;
 			closestTaxi.path = findPath(state.city, closestTaxi.position, passenger.pickup);
 
+			totalDistance += closestDistance;
+			assignmentCount++;
+
 			const idx = idleTaxis.indexOf(closestTaxi);
 			idleTaxis.splice(idx, 1);
 		}
+	}
+
+	if (assignmentCount > 0) {
+		console.log(`[GREEDY] Assigned ${assignmentCount} taxis, total distance: ${totalDistance}, avg: ${(totalDistance / assignmentCount).toFixed(2)}`);
 	}
 }
 
@@ -138,7 +148,6 @@ export function defaultOptimizer(state: SimulationState, queueSize: number): Arr
 	const idleTaxis = state.taxis.filter(t => t.state === 'idle');
 	const unassignedPassengers = state.waitingPassengers
 		.filter(p => !p.assignedTaxiId)
-		.slice(0, queueSize);
 
 	if (idleTaxis.length === 0 || unassignedPassengers.length < queueSize) {
 		return [];
@@ -161,6 +170,9 @@ export function defaultOptimizer(state: SimulationState, queueSize: number): Arr
 	const assignments = hungarianAlgorithm(costMatrix);
 	const result: Array<{ taxiId: string; passengerId: string }> = [];
 
+	let totalDistance = 0;
+	let assignmentCount = 0;
+
 	for (let i = 0; i < assignments.length; i++) {
 		const j = assignments[i];
 		if (j >= 0 && i < idleTaxis.length && j < unassignedPassengers.length) {
@@ -168,7 +180,15 @@ export function defaultOptimizer(state: SimulationState, queueSize: number): Arr
 				taxiId: idleTaxis[i].id,
 				passengerId: unassignedPassengers[j].id,
 			});
+			totalDistance += costMatrix[i][j];
+			assignmentCount++;
 		}
+	}
+
+	if (assignmentCount > 0) {
+		console.log(`[OPTIMIZER] Assigned ${assignmentCount} taxis, total distance: ${totalDistance}, avg: ${(totalDistance / assignmentCount).toFixed(2)}`);
+		console.log('Cost Matrix:', costMatrix);
+		console.log('Assignments (taxi i -> passenger j):', assignments);
 	}
 
 	return result;

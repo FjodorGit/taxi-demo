@@ -17,7 +17,7 @@ const CONFIG: SimulationConfig = {
 	cityWidth: 25,
 	cityHeight: 20,
 	numTaxis: 5,
-	queueSize: 8,
+	queueSize: 3,
 	passengerSpawnChance: 0.7,
 	ticksPerSpawnCheck: 1,
 	burstChance: 1.0,
@@ -63,26 +63,29 @@ function App() {
 	}, []);
 
 	const tick = useCallback(() => {
+		if (!states) return;
+
+		const newPassengers: Passenger[] = [];
+		if (states.greedy.tick % CONFIG.ticksPerSpawnCheck === 0) {
+			const burstRoll = randomRef.current();
+			console.log("burstFiredRef.current: ", burstFiredRef.current)
+			if (!burstFiredRef.current && burstRoll < CONFIG.burstChance) {
+				burstFiredRef.current = true;
+				const burstSize = CONFIG.burstMinSize +
+					Math.floor(randomRef.current() * (CONFIG.burstMaxSize - CONFIG.burstMinSize + 1));
+				for (let i = 0; i < burstSize; i++) {
+					newPassengers.push(spawnPassengers(states.greedy.city, states.greedy.tick, randomRef.current));
+				}
+			} else if (!burstFiredRef.current && randomRef.current() < CONFIG.passengerSpawnChance) {
+				newPassengers.push(spawnPassengers(states.greedy.city, states.greedy.tick, randomRef.current));
+			}
+		}
+
 		setStates(prev => {
 			if (!prev) return prev;
 
 			const greedy = cloneSimulationState(prev.greedy);
 			const optimized = cloneSimulationState(prev.optimized);
-
-			const newPassengers: Passenger[] = [];
-			if (greedy.tick % CONFIG.ticksPerSpawnCheck === 0) {
-				const burstRoll = randomRef.current();
-				if (burstRoll < CONFIG.burstChance) {
-					burstFiredRef.current = true;
-					const burstSize = CONFIG.burstMinSize +
-						Math.floor(randomRef.current() * (CONFIG.burstMaxSize - CONFIG.burstMinSize + 1));
-					for (let i = 0; i < burstSize; i++) {
-						newPassengers.push(spawnPassengers(greedy.city, greedy.tick, randomRef.current));
-					}
-				} else if (randomRef.current() < CONFIG.passengerSpawnChance) {
-					newPassengers.push(spawnPassengers(greedy.city, greedy.tick, randomRef.current));
-				}
-			}
 
 			for (const passenger of newPassengers) {
 				greedy.waitingPassengers.push({ ...passenger });
@@ -92,8 +95,6 @@ function App() {
 					assignedTaxiId: undefined
 				});
 			}
-			console.log("greedy.waitingPassengers: ", greedy.waitingPassengers)
-			console.log("optimized.waitingPassengers: ", optimized.waitingPassengers)
 
 			assignGreedy(greedy);
 			tickSimulation(greedy);
@@ -106,7 +107,7 @@ function App() {
 
 			return { greedy, optimized };
 		});
-	}, []);
+	}, [states]);
 
 	useEffect(() => {
 		if (isRunning) {
