@@ -1,5 +1,5 @@
 import { useRef, useEffect } from 'react';
-import type { SimulationState, Metrics } from './types';
+import type { SimulationState, Metrics, Position } from './types';
 
 interface CityCanvasProps {
   state: SimulationState;
@@ -7,6 +7,8 @@ interface CityCanvasProps {
   title: string;
   width: number;
   height: number;
+  onCellClick?: (position: Position) => void;
+  pendingPickup?: Position | null;
 }
 
 const COLORS = {
@@ -21,9 +23,10 @@ const COLORS = {
   destination: '#4ecdc4',
   text: '#e8e8e8',
   textMuted: '#888899',
+  highlight: '#ffa500',
 };
 
-export function CityCanvas({ state, metrics, title, width, height }: CityCanvasProps) {
+export function CityCanvas({ state, metrics, title, width, height, onCellClick, pendingPickup }: CityCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
   useEffect(() => {
@@ -76,6 +79,14 @@ export function CityCanvas({ state, metrics, title, width, height }: CityCanvasP
           ctx.fillRect(px + margin, py + margin, cellSize - margin * 2, cellSize - margin * 2);
         }
       }
+    }
+    
+    if (pendingPickup) {
+      const px = offsetX + pendingPickup.x * cellSize;
+      const py = offsetY + pendingPickup.y * cellSize;
+      ctx.strokeStyle = COLORS.highlight;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(px, py, cellSize, cellSize);
     }
     
     for (const passenger of state.waitingPassengers) {
@@ -193,12 +204,48 @@ export function CityCanvas({ state, metrics, title, width, height }: CityCanvasP
     ctx.fillStyle = COLORS.textMuted;
     ctx.fillText('Deliver', col1 + 127, metricsY + lineHeight * 3 + 12);
     
-  }, [state, metrics, title, width, height]);
+  }, [state, metrics, title, width, height, pendingPickup]);
+  
+  const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onCellClick) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const padding = 20;
+    const metricsHeight = 80;
+    const titleHeight = 30;
+    const availableWidth = width - padding * 2;
+    const availableHeight = height - padding * 2 - metricsHeight - titleHeight;
+    
+    const cellWidth = availableWidth / state.city.width;
+    const cellHeight = availableHeight / state.city.height;
+    const cellSize = Math.min(cellWidth, cellHeight);
+    
+    const gridWidth = cellSize * state.city.width;
+    const gridHeight = cellSize * state.city.height;
+    const offsetX = (width - gridWidth) / 2;
+    const offsetY = titleHeight + (availableHeight - gridHeight) / 2 + padding;
+    
+    const gridX = Math.floor((x - offsetX) / cellSize);
+    const gridY = Math.floor((y - offsetY) / cellSize);
+    
+    if (gridX >= 0 && gridX < state.city.width && gridY >= 0 && gridY < state.city.height) {
+      if (state.city.grid[gridY][gridX] === 'road') {
+        onCellClick({ x: gridX, y: gridY });
+      }
+    }
+  };
   
   return (
     <canvas
       ref={canvasRef}
-      style={{ width, height }}
+      style={{ width, height, cursor: onCellClick ? 'pointer' : 'default' }}
+      onClick={handleClick}
     />
   );
 }

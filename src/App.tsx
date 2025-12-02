@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { CityCanvas } from './CityCanvas';
-import type { SimulationState, SimulationConfig, Metrics, Passenger } from './types';
+import type { SimulationState, SimulationConfig, Metrics, Passenger, Position } from './types';
 import {
 	createSimulation,
 	cloneSimulationState,
@@ -42,12 +42,15 @@ interface SimStates {
 	optimized: SimulationState;
 }
 
+let manualPassengerIdCounter = 0;
+
 function App() {
 	const [states, setStates] = useState<SimStates | null>(null);
 	const [greedyMetrics, setGreedyMetrics] = useState<Metrics | null>(null);
 	const [optimizedMetrics, setOptimizedMetrics] = useState<Metrics | null>(null);
 	const [isRunning, setIsRunning] = useState(false);
 	const [speed, setSpeed] = useState(1);
+	const [pendingPickup, setPendingPickup] = useState<Position | null>(null);
 
 	const randomRef = useRef(seededRandom(SEED + 5000));
 	const intervalRef = useRef<number | null>(null);
@@ -138,6 +141,7 @@ function App() {
 		setIsRunning(false);
 		randomRef.current = seededRandom(SEED + 5000);
 		burstFiredRef.current = false;
+		setPendingPickup(null);
 
 		const greedy = createSimulation(CONFIG, SEED);
 		const optimized = cloneSimulationState(greedy);
@@ -146,6 +150,50 @@ function App() {
 		setGreedyMetrics(calculateMetrics(greedy));
 		setOptimizedMetrics(calculateMetrics(optimized));
 	};
+
+	const handleCellClick = useCallback((position: Position) => {
+		if (!states) return;
+
+		if (!pendingPickup) {
+			setPendingPickup(position);
+		} else {
+			if (position.x === pendingPickup.x && position.y === pendingPickup.y) {
+				setPendingPickup(null);
+				return;
+			}
+
+			const manualPassenger: Passenger = {
+				id: `manual-${manualPassengerIdCounter++}`,
+				pickup: pendingPickup,
+				destination: position,
+				spawnTick: states.greedy.tick,
+			};
+
+			setStates(prev => {
+				if (!prev) return prev;
+
+				const greedy = cloneSimulationState(prev.greedy);
+				const optimized = cloneSimulationState(prev.optimized);
+
+				greedy.waitingPassengers.push({ ...manualPassenger });
+				optimized.waitingPassengers.push({
+					...manualPassenger,
+					id: manualPassenger.id + '-opt',
+					assignedTaxiId: undefined
+				});
+
+				assignGreedy(greedy);
+				assignOptimized(optimized, CONFIG.queueSize, optimizer);
+
+				setGreedyMetrics(calculateMetrics(greedy));
+				setOptimizedMetrics(calculateMetrics(optimized));
+
+				return { greedy, optimized };
+			});
+
+			setPendingPickup(null);
+		}
+	}, [states, pendingPickup]);
 
 	if (!states || !greedyMetrics || !optimizedMetrics) {
 		return <div style={{ color: '#fff', padding: 20 }}>Loading...</div>;
@@ -231,6 +279,15 @@ function App() {
 						<option value={8}>8x</option>
 					</select>
 				</div>
+				{pendingPickup && (
+					<div style={{
+						color: '#ffa500',
+						marginLeft: 10,
+						fontWeight: 'bold',
+					}}>
+						Click destination...
+					</div>
+				)}
 				<div style={{ color: '#888899', marginLeft: 'auto', fontSize: 12 }}>
 					Taxis: {CONFIG.numTaxis} | Queue Size: {CONFIG.queueSize} | City: {CONFIG.cityWidth}x{CONFIG.cityHeight}
 				</div>
@@ -247,6 +304,8 @@ function App() {
 					title="Greedy Assignment (Nearest Taxi)"
 					width={canvasWidth}
 					height={canvasHeight}
+					onCellClick={handleCellClick}
+					pendingPickup={pendingPickup}
 				/>
 				<CityCanvas
 					state={states.optimized}
@@ -254,6 +313,8 @@ function App() {
 					title="Optimized Assignment"
 					width={canvasWidth}
 					height={canvasHeight}
+					onCellClick={handleCellClick}
+					pendingPickup={pendingPickup}
 				/>
 			</div>
 		</div>
