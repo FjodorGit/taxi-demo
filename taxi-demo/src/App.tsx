@@ -14,15 +14,15 @@ import {
 } from './simulation';
 
 const CONFIG: SimulationConfig = {
-	cityWidth: 25,
-	cityHeight: 20,
-	numTaxis: 5,
-	queueSize: 3,
+	cityWidth: 40,
+	cityHeight: 36,
+	numTaxis: 12,
+	queueSize: 12,
 	passengerSpawnChance: 0.7,
-	ticksPerSpawnCheck: 1,
-	burstChance: 1.0,
-	burstMinSize: 3,
-	burstMaxSize: 3,
+	ticksPerSpawnCheck: 5,
+	burstChance: 0.1,
+	burstMinSize: 4,
+	burstMaxSize: 11,
 };
 
 const SEED = 12344;
@@ -68,15 +68,13 @@ function App() {
 		const newPassengers: Passenger[] = [];
 		if (states.greedy.tick % CONFIG.ticksPerSpawnCheck === 0) {
 			const burstRoll = randomRef.current();
-			console.log("burstFiredRef.current: ", burstFiredRef.current)
 			if (!burstFiredRef.current && burstRoll < CONFIG.burstChance) {
-				burstFiredRef.current = true;
 				const burstSize = CONFIG.burstMinSize +
 					Math.floor(randomRef.current() * (CONFIG.burstMaxSize - CONFIG.burstMinSize + 1));
 				for (let i = 0; i < burstSize; i++) {
 					newPassengers.push(spawnPassengers(states.greedy.city, states.greedy.tick, randomRef.current));
 				}
-			} else if (!burstFiredRef.current && randomRef.current() < CONFIG.passengerSpawnChance) {
+			} else if (randomRef.current() < CONFIG.passengerSpawnChance) {
 				newPassengers.push(spawnPassengers(states.greedy.city, states.greedy.tick, randomRef.current));
 			}
 		}
@@ -86,6 +84,9 @@ function App() {
 
 			const greedy = cloneSimulationState(prev.greedy);
 			const optimized = cloneSimulationState(prev.optimized);
+
+			tickSimulation(greedy);
+			tickSimulation(optimized);
 
 			for (const passenger of newPassengers) {
 				greedy.waitingPassengers.push({ ...passenger });
@@ -97,10 +98,19 @@ function App() {
 			}
 
 			assignGreedy(greedy);
-			tickSimulation(greedy);
-
 			assignOptimized(optimized, CONFIG.queueSize, optimizer);
-			tickSimulation(optimized);
+
+			for (const p of greedy.waitingPassengers) {
+				if (!p.assignedTaxiId && (greedy.tick - p.spawnTick) > 100) {
+					console.error(`[GREEDY] Passenger ${p.id} stuck waiting for ${greedy.tick - p.spawnTick} ticks at (${p.pickup.x}, ${p.pickup.y})`);
+				}
+			}
+
+			for (const p of optimized.waitingPassengers) {
+				if (!p.assignedTaxiId && (optimized.tick - p.spawnTick) > 100) {
+					console.error(`[OPTIMIZER] Passenger ${p.id} stuck waiting for ${optimized.tick - p.spawnTick} ticks at (${p.pickup.x}, ${p.pickup.y})`);
+				}
+			}
 
 			setGreedyMetrics(calculateMetrics(greedy));
 			setOptimizedMetrics(calculateMetrics(optimized));

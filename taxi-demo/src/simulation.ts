@@ -98,7 +98,7 @@ export function assignGreedy(state: SimulationState): void {
 			}
 		}
 
-		if (closestTaxi) {
+		if (closestTaxi && closestDistance !== Infinity) {
 			passenger.assignedTaxiId = closestTaxi.id;
 			closestTaxi.state = 'picking_up';
 			closestTaxi.currentPassenger = passenger;
@@ -110,6 +110,8 @@ export function assignGreedy(state: SimulationState): void {
 
 			const idx = idleTaxis.indexOf(closestTaxi);
 			idleTaxis.splice(idx, 1);
+		} else if (closestDistance === Infinity) {
+			console.warn(`[GREEDY] No path found to passenger at (${passenger.pickup.x}, ${passenger.pickup.y})`);
 		}
 	}
 
@@ -147,9 +149,9 @@ export function assignOptimized(
 export function defaultOptimizer(state: SimulationState, queueSize: number): Array<{ taxiId: string; passengerId: string }> {
 	const idleTaxis = state.taxis.filter(t => t.state === 'idle');
 	const unassignedPassengers = state.waitingPassengers
-		.filter(p => !p.assignedTaxiId)
+		.filter(p => !p.assignedTaxiId).slice(0, queueSize)
 
-	if (idleTaxis.length === 0 || unassignedPassengers.length < queueSize) {
+	if (idleTaxis.length === 0 || unassignedPassengers.length === 0) {
 		return [];
 	}
 
