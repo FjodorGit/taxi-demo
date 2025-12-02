@@ -252,8 +252,8 @@ function App() {
 				>
 					↻ Reset
 				</button>
-				<div style={{ 
-					color: '#94a3b8', 
+				<div style={{
+					color: '#94a3b8',
 					marginLeft: 12,
 					display: 'flex',
 					alignItems: 'center',
@@ -285,8 +285,8 @@ function App() {
 					</select>
 				</div>
 				{pendingPickup && (
-					<div style={{ 
-						color: '#fb923c', 
+					<div style={{
+						color: '#fb923c',
 						marginLeft: 12,
 						fontWeight: '600',
 						fontSize: '14px',
@@ -298,9 +298,9 @@ function App() {
 						📍 Click destination...
 					</div>
 				)}
-				<div style={{ 
-					color: '#64748b', 
-					marginLeft: 'auto', 
+				<div style={{
+					color: '#64748b',
+					marginLeft: 'auto',
 					fontSize: '13px',
 					fontWeight: '500',
 				}}>
@@ -325,7 +325,7 @@ function App() {
 				<CityCanvas
 					state={states.optimized}
 					metrics={optimizedMetrics}
-					title="Optimized Assignment (Hungarian)"
+					title="Optimized Assignment"
 					width={canvasWidth}
 					height={canvasHeight}
 					onCellClick={handleCellClick}
