@@ -1,6 +1,6 @@
 # Taxi Demo
 
-A visual simulation comparing greedy vs. optimized (Hungarian algorithm) taxi dispatch strategies.
+A visual simulation comparing greedy vs. optimized taxi dispatch strategies.
 
 **[View Demo](https://fjodorgit.github.io/taxi-demo/)**
 

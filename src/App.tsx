@@ -251,7 +251,7 @@ function App() {
 				<CityCanvas
 					state={states.optimized}
 					metrics={optimizedMetrics}
-					title="Optimized Assignment (Hungarian)"
+					title="Optimized Assignment"
 					width={canvasWidth}
 					height={canvasHeight}
 				/>
