@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import type { SimulationState, Metrics, Position } from './types';
 
 interface CityCanvasProps {
@@ -12,23 +12,54 @@ interface CityCanvasProps {
 }
 
 const COLORS = {
-  background: '#1a1a2e',
-  road: '#2d2d44',
-  building: '#404060',
-  empty: '#1a1a2e',
-  taxi: '#ffd93d',
-  taxiPickingUp: '#ff6b6b',
-  taxiDelivering: '#6bcb77',
-  passenger: '#ff6b6b',
-  destination: '#4ecdc4',
-  text: '#e8e8e8',
-  textMuted: '#888899',
-  highlight: '#ffa500',
+  background: '#0a0e27',
+  road: '#1e293b',
+  building: '#334155',
+  buildingAccent: '#475569',
+  empty: '#0a0e27',
+  taxi: '#fbbf24',
+  taxiPickingUp: '#f87171',
+  taxiDelivering: '#34d399',
+  passenger: '#ec4899',
+  destination: '#06b6d4',
+  text: '#f1f5f9',
+  textMuted: '#94a3b8',
+  highlight: '#fb923c',
+  highlightGlow: 'rgba(251, 146, 60, 0.3)',
 };
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
 
 export function CityCanvas({ state, metrics, title, width, height, onCellClick, pendingPickup }: CityCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [animationTime, setAnimationTime] = useState(0);
   
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimationTime(t => t + 0.05);
+    }, 50);
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -42,8 +73,8 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
     ctx.scale(dpr, dpr);
     
     const padding = 20;
-    const metricsHeight = 80;
-    const titleHeight = 30;
+    const metricsHeight = 85;
+    const titleHeight = 40;
     const availableWidth = width - padding * 2;
     const availableHeight = height - padding * 2 - metricsHeight - titleHeight;
     
@@ -60,9 +91,9 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
     ctx.fillRect(0, 0, width, height);
     
     ctx.fillStyle = COLORS.text;
-    ctx.font = 'bold 16px system-ui, sans-serif';
+    ctx.font = '600 18px "Inter", system-ui, -apple-system, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(title, width / 2, 22);
+    ctx.fillText(title, width / 2, 28);
     
     for (let y = 0; y < state.city.height; y++) {
       for (let x = 0; x < state.city.width; x++) {
@@ -72,11 +103,21 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
         
         if (cell === 'road') {
           ctx.fillStyle = COLORS.road;
-          ctx.fillRect(px, py, cellSize, cellSize);
+          roundRect(ctx, px + 0.5, py + 0.5, cellSize - 1, cellSize - 1, cellSize * 0.1);
+          ctx.fill();
         } else if (cell === 'building') {
-          ctx.fillStyle = COLORS.building;
-          const margin = cellSize * 0.1;
-          ctx.fillRect(px + margin, py + margin, cellSize - margin * 2, cellSize - margin * 2);
+          const variation = ((x * 7 + y * 13) % 3) / 10;
+          ctx.fillStyle = variation > 0.6 ? COLORS.buildingAccent : COLORS.building;
+          const margin = cellSize * 0.12;
+          roundRect(
+            ctx,
+            px + margin,
+            py + margin,
+            cellSize - margin * 2,
+            cellSize - margin * 2,
+            cellSize * 0.15
+          );
+          ctx.fill();
         }
       }
     }
@@ -84,42 +125,48 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
     if (pendingPickup) {
       const px = offsetX + pendingPickup.x * cellSize;
       const py = offsetY + pendingPickup.y * cellSize;
+      
+      const pulseScale = 1 + Math.sin(animationTime * 3) * 0.1;
+      const glowRadius = cellSize * 0.6 * pulseScale;
+      
+      const gradient = ctx.createRadialGradient(
+        px + cellSize / 2,
+        py + cellSize / 2,
+        cellSize * 0.2,
+        px + cellSize / 2,
+        py + cellSize / 2,
+        glowRadius
+      );
+      gradient.addColorStop(0, COLORS.highlightGlow);
+      gradient.addColorStop(1, 'rgba(251, 146, 60, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(px - cellSize * 0.2, py - cellSize * 0.2, cellSize * 1.4, cellSize * 1.4);
+      
       ctx.strokeStyle = COLORS.highlight;
       ctx.lineWidth = 3;
-      ctx.strokeRect(px, py, cellSize, cellSize);
+      roundRect(ctx, px + 1, py + 1, cellSize - 2, cellSize - 2, cellSize * 0.15);
+      ctx.stroke();
     }
     
     for (const passenger of state.waitingPassengers) {
       const px = offsetX + passenger.pickup.x * cellSize + cellSize / 2;
       const py = offsetY + passenger.pickup.y * cellSize + cellSize / 2;
       
+      const pulse = 1 + Math.sin(animationTime * 2) * 0.15;
+      const radius = cellSize * 0.28 * pulse;
+      
       ctx.fillStyle = COLORS.passenger;
       ctx.beginPath();
-      ctx.arc(px, py, cellSize * 0.25, 0, Math.PI * 2);
+      ctx.arc(px, py, radius, 0, Math.PI * 2);
       ctx.fill();
-      
-      if (passenger.assignedTaxiId) {
-        const taxiIndex = state.taxis.findIndex(t => t.id === passenger.assignedTaxiId);
-        if (taxiIndex >= 0) {
-          ctx.fillStyle = '#1a1a2e';
-          ctx.beginPath();
-          ctx.arc(px, py, cellSize * 0.15, 0, Math.PI * 2);
-          ctx.fill();
-          
-          ctx.fillStyle = '#ffffff';
-          ctx.font = `bold ${Math.floor(cellSize * 0.22)}px system-ui, sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(String(taxiIndex), px, py);
-        }
-      }
       
       const dx = offsetX + passenger.destination.x * cellSize + cellSize / 2;
       const dy = offsetY + passenger.destination.y * cellSize + cellSize / 2;
       
       ctx.strokeStyle = COLORS.destination;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 2]);
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
       ctx.beginPath();
       ctx.moveTo(px, py);
       ctx.lineTo(dx, dy);
@@ -127,9 +174,9 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
       ctx.setLineDash([]);
       
       ctx.strokeStyle = COLORS.destination;
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.arc(dx, dy, cellSize * 0.2, 0, Math.PI * 2);
+      ctx.arc(dx, dy, cellSize * 0.22, 0, Math.PI * 2);
       ctx.stroke();
     }
     
@@ -139,7 +186,7 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
       
       ctx.fillStyle = COLORS.destination;
       ctx.beginPath();
-      ctx.arc(dx, dy, cellSize * 0.2, 0, Math.PI * 2);
+      ctx.arc(dx, dy, cellSize * 0.22, 0, Math.PI * 2);
       ctx.fill();
     }
     
@@ -156,55 +203,55 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
         ctx.fillStyle = COLORS.taxiDelivering;
       }
       
-      const size = cellSize * 0.35;
-      ctx.fillRect(px - size / 2, py - size / 2, size, size);
-      
-      if (taxi.state === 'picking_up' || taxi.state === 'delivering') {
-        ctx.fillStyle = '#1a1a2e';
-        ctx.beginPath();
-        ctx.arc(px, py, cellSize * 0.15, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `bold ${Math.floor(cellSize * 0.22)}px system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(String(i), px, py);
-      }
+      const size = cellSize * 0.38;
+      roundRect(ctx, px - size / 2, py - size / 2, size, size, size * 0.25);
+      ctx.fill();
     }
     
-    const metricsY = height - metricsHeight + 10;
+    const metricsY = height - metricsHeight + 12;
     ctx.fillStyle = COLORS.textMuted;
-    ctx.font = '11px system-ui, sans-serif';
+    ctx.font = '500 12px "Inter", system-ui, sans-serif';
     ctx.textAlign = 'left';
     
-    const col1 = 15;
-    const col2 = width / 2 + 10;
-    const lineHeight = 16;
+    const col1 = 20;
+    const col2 = width / 2 + 15;
+    const lineHeight = 18;
     
-    ctx.fillText(`Tick: ${state.tick}`, col1, metricsY);
+    ctx.fillStyle = COLORS.text;
+    ctx.font = '600 13px "Inter", system-ui, sans-serif';
+    ctx.fillText(`Tick ${state.tick}`, col1, metricsY);
+    
+    ctx.fillStyle = COLORS.textMuted;
+    ctx.font = '500 12px "Inter", system-ui, sans-serif';
     ctx.fillText(`Waiting: ${metrics.totalPassengersWaiting}`, col1, metricsY + lineHeight);
     ctx.fillText(`Served: ${metrics.totalPassengersServed}`, col1, metricsY + lineHeight * 2);
-    ctx.fillText(`Avg Wait: ${metrics.avgWaitTime.toFixed(1)}`, col2, metricsY);
-    ctx.fillText(`Avg Trip: ${metrics.avgTripTime.toFixed(1)}`, col2, metricsY + lineHeight);
-    ctx.fillText(`Utilization: ${(metrics.avgTaxiUtilization * 100).toFixed(0)}%`, col2, metricsY + lineHeight * 2);
+    ctx.fillText(`Avg Wait: ${metrics.avgWaitTime.toFixed(1)}`, col2, metricsY + lineHeight);
+    ctx.fillText(`Avg Trip: ${metrics.avgTripTime.toFixed(1)}`, col2, metricsY + lineHeight * 2);
+    
+    const legendY = metricsY + lineHeight * 2.8;
+    ctx.font = '500 11px "Inter", system-ui, sans-serif';
     
     ctx.fillStyle = COLORS.taxi;
-    ctx.fillRect(col1, metricsY + lineHeight * 3 + 5, 8, 8);
+    roundRect(ctx, col1, legendY, 9, 9, 2);
+    ctx.fill();
     ctx.fillStyle = COLORS.textMuted;
-    ctx.fillText('Idle', col1 + 12, metricsY + lineHeight * 3 + 12);
+    ctx.fillText('Idle', col1 + 14, legendY + 7);
     
     ctx.fillStyle = COLORS.taxiPickingUp;
-    ctx.fillRect(col1 + 50, metricsY + lineHeight * 3 + 5, 8, 8);
+    roundRect(ctx, col1 + 42, legendY, 9, 9, 2);
+    ctx.fill();
     ctx.fillStyle = COLORS.textMuted;
-    ctx.fillText('Pickup', col1 + 62, metricsY + lineHeight * 3 + 12);
+    ctx.fillText('Pickup', col1 + 56, legendY + 7);
     
     ctx.fillStyle = COLORS.taxiDelivering;
-    ctx.fillRect(col1 + 115, metricsY + lineHeight * 3 + 5, 8, 8);
+    roundRect(ctx, col1 + 100, legendY, 9, 9, 2);
+    ctx.fill();
     ctx.fillStyle = COLORS.textMuted;
-    ctx.fillText('Deliver', col1 + 127, metricsY + lineHeight * 3 + 12);
+    ctx.fillText('Deliver', col1 + 114, legendY + 7);
     
-  }, [state, metrics, title, width, height, pendingPickup]);
+    ctx.fillText(`Utilization: ${(metrics.avgTaxiUtilization * 100).toFixed(0)}%`, col2, legendY + 7);
+    
+  }, [state, metrics, title, width, height, pendingPickup, animationTime]);
   
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!onCellClick) return;
@@ -217,8 +264,8 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
     const y = e.clientY - rect.top;
     
     const padding = 20;
-    const metricsHeight = 80;
-    const titleHeight = 30;
+    const metricsHeight = 85;
+    const titleHeight = 40;
     const availableWidth = width - padding * 2;
     const availableHeight = height - padding * 2 - metricsHeight - titleHeight;
     
@@ -244,7 +291,12 @@ export function CityCanvas({ state, metrics, title, width, height, onCellClick, 
   return (
     <canvas
       ref={canvasRef}
-      style={{ width, height, cursor: onCellClick ? 'pointer' : 'default' }}
+      style={{ 
+        width, 
+        height, 
+        cursor: onCellClick ? 'pointer' : 'default',
+        borderRadius: '12px',
+      }}
       onClick={handleClick}
     />
   );

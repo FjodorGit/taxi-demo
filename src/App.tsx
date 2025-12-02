@@ -196,80 +196,85 @@ function App() {
 	}, [states, pendingPickup]);
 
 	if (!states || !greedyMetrics || !optimizedMetrics) {
-		return <div style={{ color: '#fff', padding: 20 }}>Loading...</div>;
+		return <div style={{ color: '#f1f5f9', padding: 20, fontFamily: '"Inter", system-ui, sans-serif' }}>Loading...</div>;
 	}
 
 	const canvasWidth = Math.floor((window.innerWidth - 40) / 2);
 	const canvasHeight = window.innerHeight - 80;
 
+	const buttonStyle = (color: string, disabled = false) => ({
+		padding: '10px 24px',
+		background: color,
+		border: 'none',
+		borderRadius: '8px',
+		color: '#fff',
+		cursor: disabled ? 'not-allowed' : 'pointer',
+		fontWeight: '600',
+		fontSize: '14px',
+		fontFamily: '"Inter", system-ui, sans-serif',
+		opacity: disabled ? 0.5 : 1,
+		transition: 'all 0.2s ease',
+		boxShadow: disabled ? 'none' : '0 2px 8px rgba(0, 0, 0, 0.15)',
+	});
+
 	return (
 		<div style={{
-			background: '#0f0f1a',
+			background: '#0a0e27',
 			minHeight: '100vh',
 			display: 'flex',
 			flexDirection: 'column',
+			fontFamily: '"Inter", system-ui, -apple-system, sans-serif',
 		}}>
 			<div style={{
 				display: 'flex',
-				gap: 10,
-				padding: '10px 20px',
+				gap: 12,
+				padding: '16px 24px',
 				alignItems: 'center',
-				borderBottom: '1px solid #2d2d44',
+				borderBottom: '1px solid #1e293b',
+				background: 'linear-gradient(180deg, #0f1420 0%, #0a0e27 100%)',
 			}}>
 				<button
 					onClick={() => setIsRunning(!isRunning)}
-					style={{
-						padding: '8px 20px',
-						background: isRunning ? '#ff6b6b' : '#6bcb77',
-						border: 'none',
-						borderRadius: 4,
-						color: '#fff',
-						cursor: 'pointer',
-						fontWeight: 'bold',
-					}}
+					style={buttonStyle(isRunning ? '#ef4444' : '#10b981')}
 				>
-					{isRunning ? 'Pause' : 'Start'}
+					{isRunning ? '⏸ Pause' : '▶ Start'}
 				</button>
 				<button
 					onClick={tick}
 					disabled={isRunning}
-					style={{
-						padding: '8px 20px',
-						background: '#4ecdc4',
-						border: 'none',
-						borderRadius: 4,
-						color: '#fff',
-						cursor: isRunning ? 'not-allowed' : 'pointer',
-						opacity: isRunning ? 0.5 : 1,
-					}}
+					style={buttonStyle('#06b6d4', isRunning)}
 				>
-					Step
+					⏭ Step
 				</button>
 				<button
 					onClick={reset}
-					style={{
-						padding: '8px 20px',
-						background: '#888899',
-						border: 'none',
-						borderRadius: 4,
-						color: '#fff',
-						cursor: 'pointer',
-					}}
+					style={buttonStyle('#64748b')}
 				>
-					Reset
+					↻ Reset
 				</button>
-				<div style={{ color: '#888899', marginLeft: 10 }}>
+				<div style={{ 
+					color: '#94a3b8', 
+					marginLeft: 12,
+					display: 'flex',
+					alignItems: 'center',
+					gap: 8,
+					fontSize: '14px',
+					fontWeight: '500',
+				}}>
 					Speed:
 					<select
 						value={speed}
 						onChange={e => setSpeed(Number(e.target.value))}
 						style={{
-							marginLeft: 5,
-							padding: '4px 8px',
-							background: '#2d2d44',
-							color: '#fff',
-							border: '1px solid #404060',
-							borderRadius: 4,
+							padding: '6px 12px',
+							background: '#1e293b',
+							color: '#f1f5f9',
+							border: '1px solid #334155',
+							borderRadius: '6px',
+							fontSize: '14px',
+							fontFamily: '"Inter", system-ui, sans-serif',
+							cursor: 'pointer',
+							fontWeight: '500',
 						}}
 					>
 						<option value={0.5}>0.5x</option>
@@ -280,23 +285,33 @@ function App() {
 					</select>
 				</div>
 				{pendingPickup && (
-					<div style={{
-						color: '#ffa500',
-						marginLeft: 10,
-						fontWeight: 'bold',
+					<div style={{ 
+						color: '#fb923c', 
+						marginLeft: 12,
+						fontWeight: '600',
+						fontSize: '14px',
+						padding: '8px 16px',
+						background: 'rgba(251, 146, 60, 0.1)',
+						borderRadius: '6px',
+						border: '1px solid rgba(251, 146, 60, 0.3)',
 					}}>
-						Click destination...
+						📍 Click destination...
 					</div>
 				)}
-				<div style={{ color: '#888899', marginLeft: 'auto', fontSize: 12 }}>
-					Taxis: {CONFIG.numTaxis} | Queue Size: {CONFIG.queueSize} | City: {CONFIG.cityWidth}x{CONFIG.cityHeight}
+				<div style={{ 
+					color: '#64748b', 
+					marginLeft: 'auto', 
+					fontSize: '13px',
+					fontWeight: '500',
+				}}>
+					🚕 {CONFIG.numTaxis} Taxis • 📋 Queue {CONFIG.queueSize} • 🗺️ {CONFIG.cityWidth}×{CONFIG.cityHeight}
 				</div>
 			</div>
 			<div style={{
 				display: 'flex',
 				flex: 1,
-				gap: 10,
-				padding: 10,
+				gap: 12,
+				padding: 12,
 			}}>
 				<CityCanvas
 					state={states.greedy}
@@ -310,7 +325,7 @@ function App() {
 				<CityCanvas
 					state={states.optimized}
 					metrics={optimizedMetrics}
-					title="Optimized Assignment"
+					title="Optimized Assignment (Hungarian)"
 					width={canvasWidth}
 					height={canvasHeight}
 					onCellClick={handleCellClick}
